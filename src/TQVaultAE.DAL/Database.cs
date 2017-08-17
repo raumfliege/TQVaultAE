@@ -103,12 +103,13 @@ namespace TQVaultData
 		/// Gets the UI design DPI which is used to for scaling comparisons.
 		/// </summary>
 		public static float DesignDpi
-		{
-			get
-			{
-				// Use 96 DPI which is "normal" for Windows.
-				return 96.0F;
-			}
+        {
+            get
+            {
+                // Use 96 DPI which is "normal" for Windows.
+                return 96.0F;
+            }
+        }
 
 		/// <summary>
 		/// Gets or sets a value indicating whether the game language is being auto detected.

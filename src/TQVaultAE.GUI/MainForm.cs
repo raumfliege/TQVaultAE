@@ -1150,7 +1150,7 @@ namespace TQVaultAE.GUI
 		/// <param name="numBags">Number of bags in the vault panel.</param>
 		private void CreateVaultPanel(int numBags)
 		{
-			this.vaultPanel = new VaultPanel(this.dragInfo, numBags, new Size(12, 5), this.tooltip, 1, AutoMoveLocation.Vault);
+			this.vaultPanel = new VaultPanel(this.dragInfo, numBags, new Size(12, 8), this.tooltip, 1, AutoMoveLocation.Vault);
 
 			// Move to the top just below the dropdowns.  Swap the vault and the player panel locations.
 			int locationY = Convert.ToInt32(138.0F * Database.DB.Scale);
@@ -1180,7 +1180,7 @@ namespace TQVaultAE.GUI
 		/// <param name="numBags">Number of bags in the secondary vault panel.</param>
 		private void CreateSecondaryVaultPanel(int numBags)
 		{
-			this.secondaryVaultPanel = new VaultPanel(this.dragInfo, numBags, new Size(12, 5), this.tooltip, 1, AutoMoveLocation.SecondaryVault);
+			this.secondaryVaultPanel = new VaultPanel(this.dragInfo, numBags, new Size(12, 8), this.tooltip, 1, AutoMoveLocation.SecondaryVault);
 			this.secondaryVaultPanel.DrawAsGroupBox = false;
 			if (!Settings.Default.EnableNewUI)
 			{
@@ -1189,7 +1189,7 @@ namespace TQVaultAE.GUI
 
 			// Place it with the same Y value as the character panel and X value of the vault panel.
 			// Should be independent of using the new UI or the old one.
-			this.secondaryVaultPanel.Location = new Point(Convert.ToInt32(16.0F * Database.DB.Scale), this.playerPanel.Location.Y);
+			this.secondaryVaultPanel.Location = new Point(Convert.ToInt32(16.0F * Database.DB.Scale), this.playerPanel.Location.Y - Convert.ToInt32(95.0F * Database.DB.Scale));
 			this.secondaryVaultPanel.OnNewItemHighlighted += new EventHandler<SackPanelEventArgs>(this.NewItemHighlightedCallback);
 			this.secondaryVaultPanel.OnAutoMoveItem += new EventHandler<SackPanelEventArgs>(this.AutoMoveItemCallback);
 			this.secondaryVaultPanel.OnActivateSearch += new EventHandler<SackPanelEventArgs>(this.ActivateSearchCallback);

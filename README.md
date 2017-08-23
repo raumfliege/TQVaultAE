@@ -1,3 +1,5 @@
+## This Page has not been updated since I forked the Project from EtienneLamoureux/TQVaultAE, so some Information on this Page might be outdated or missing.
+
 # TQVaultAE
 An external tool for Titan Quest Anniversary Edition that allows you to trade items between your characters or even store them offline in private vaults.
 

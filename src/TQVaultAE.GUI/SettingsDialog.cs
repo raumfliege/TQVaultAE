@@ -1169,6 +1169,7 @@ namespace TQVaultAE.GUI
 		/// <param name="e">EventArgs data</param>
 		private void CheckNowButtonClick(object sender, EventArgs e)
 		{
+            /*
 			// Need to hide this form since the pop up window shows up behind it.
 			this.Hide();
 
@@ -1182,6 +1183,7 @@ namespace TQVaultAE.GUI
 
 			// Now that the pop up is gone we can show this window again.
 			this.Show();
+            */
 		}
 
 		/// <summary>

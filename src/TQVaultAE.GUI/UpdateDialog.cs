@@ -193,6 +193,7 @@ namespace TQVaultAE.GUI
 		[PermissionSet(SecurityAction.LinkDemand, Unrestricted = true)]
 		public void CheckForUpdates()
 		{
+            /*
 			if (this.client == null)
 			{
 				return;
@@ -288,6 +289,7 @@ namespace TQVaultAE.GUI
 						stream.Close();
 					}
 				}
+                
 			}
 
 			// Get the current version of the update program.
@@ -367,6 +369,7 @@ namespace TQVaultAE.GUI
 			}
 
 			this.ProcessUpdates();
+            */
 		}
 
 		/// <summary>

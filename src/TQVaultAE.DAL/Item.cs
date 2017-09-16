@@ -1919,35 +1919,7 @@ namespace TQVaultData
 			{
 				return this.requirementsString;
 			}
-
-			SortedList<string, Variable> requirementsList = new SortedList<string, Variable>();
-			if (this.baseItemInfo != null)
-			{
-				GetRequirementsFromRecord(requirementsList, Database.DB.GetRecordFromFile(this.BaseItemId));
-				this.GetDynamicRequirementsFromRecord(requirementsList, this.baseItemInfo);
-			}
-
-			if (this.prefixInfo != null)
-			{
-				GetRequirementsFromRecord(requirementsList, Database.DB.GetRecordFromFile(this.prefixID));
-			}
-
-			if (this.suffixInfo != null)
-			{
-				GetRequirementsFromRecord(requirementsList, Database.DB.GetRecordFromFile(this.suffixID));
-			}
-
-			if (this.RelicInfo != null)
-			{
-				GetRequirementsFromRecord(requirementsList, Database.DB.GetRecordFromFile(this.relicID));
-			}
-
-			// Add Artifact level requirement to formula
-			if (this.IsFormulae && this.baseItemInfo != null)
-			{
-				string artifactID = this.baseItemInfo.GetString("artifactName");
-				GetRequirementsFromRecord(requirementsList, Database.DB.GetRecordFromFile(artifactID));
-			}
+			SortedList<string, Variable> requirementsList = GetRequirementVariables();
 
 			// Get the format string to use to list a requirement
 			string requirementFormat = Database.DB.GetFriendlyName("MeetsRequirement");
@@ -2010,6 +1982,46 @@ namespace TQVaultData
 			}
 
 			return this.requirementsString;
+		}
+
+		private SortedList<string, Variable> requirementsList;
+		public SortedList<string, Variable> GetRequirementVariables()
+		{
+			if (this.requirementsList != null)
+			{
+				return this.requirementsList;
+			}
+
+			requirementsList = new SortedList<string, Variable>();
+			if (this.baseItemInfo != null)
+			{
+				GetRequirementsFromRecord(requirementsList, Database.DB.GetRecordFromFile(this.BaseItemId));
+				this.GetDynamicRequirementsFromRecord(requirementsList, this.baseItemInfo);
+			}
+
+			if (this.prefixInfo != null)
+			{
+				GetRequirementsFromRecord(requirementsList, Database.DB.GetRecordFromFile(this.prefixID));
+			}
+
+			if (this.suffixInfo != null)
+			{
+				GetRequirementsFromRecord(requirementsList, Database.DB.GetRecordFromFile(this.suffixID));
+			}
+
+			if (this.RelicInfo != null)
+			{
+				GetRequirementsFromRecord(requirementsList, Database.DB.GetRecordFromFile(this.relicID));
+			}
+
+			// Add Artifact level requirement to formula
+			if (this.IsFormulae && this.baseItemInfo != null)
+			{
+				string artifactID = this.baseItemInfo.GetString("artifactName");
+				GetRequirementsFromRecord(requirementsList, Database.DB.GetRecordFromFile(artifactID));
+			}
+
+			return requirementsList;
 		}
 
 		/// <summary>
@@ -4451,17 +4463,23 @@ namespace TQVaultData
 				key = key.Replace("Equation", string.Empty);
 				key = key.Replace(key[0], char.ToUpperInvariant(key[0]));
 
-				// Level needs to be LevelRequirement bah
-				if (key.Equals("Level"))
-				{
-					key = "LevelRequirement";
-				}
-
 				// We need to ignore the cost equations.
 				// Shields have costs so they will cause an overflow.
 				if (key.Equals("Cost"))
 				{
 					continue;
+				}
+
+				var variableKey = key.ToLowerInvariant();
+				if (variableKey == "level" || variableKey == "strength" || variableKey == "dexterity" || variableKey == "intelligence")
+				{
+					variableKey += "Requirement";
+				}
+
+				// Level needs to be LevelRequirement bah
+				if (key.Equals("Level"))
+				{
+					key = "LevelRequirement";
 				}
 
 				string value = variable.ToStringValue().Replace(itemLevelTag, itemLevel);
@@ -4473,7 +4491,7 @@ namespace TQVaultData
 				Expression expression = ExpressionEvaluate.CreateExpression(value);
 
 				// Changed by Bman to fix random overflow crashes
-				Variable ans = new Variable(string.Empty, VariableDataType.Integer, 1);
+				Variable ans = new Variable(variableKey, VariableDataType.Integer, 1);
 
 				// Changed by VillageIdiot to fix random overflow crashes.
 				double tempVal = Math.Ceiling(Convert.ToDouble(expression.Evaluate(), CultureInfo.InvariantCulture));

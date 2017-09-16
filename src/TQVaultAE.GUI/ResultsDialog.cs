@@ -56,8 +56,8 @@ namespace TQVaultAE.GUI
 			this.item.HeaderText = Resources.ResultsItem;
 			this.containerName.HeaderText = Resources.ResultsContainer;
 			this.containerType.HeaderText = Resources.ResultsContainerType;
-			this.sack.HeaderText = Resources.ResultsSack;
 			this.quality.HeaderText = Resources.ResultsQuality;
+			this.level.HeaderText = Resources.ResultsLevel;
 
 			this.DrawCustomBorder = true;
 
@@ -255,21 +255,25 @@ namespace TQVaultAE.GUI
 			// Update the dialog text.
 			this.Text = string.Format(CultureInfo.CurrentCulture, Resources.ResultsText, this.resultsList.Count, this.searchString);
 
-			foreach (Result result in this.resultsList)
+			for (int i = 0; i < this.resultsList.Count; i++)
 			{
-				string text = result.Item.ToString();
-				Color color = result.Item.GetColorTag(text);
-				text = Item.ClipColorTag(text);
-
+				Result result = this.resultsList[i];
 				// Add the result to the DataGridView
-				this.resultsDataGridView.Rows.Add(text, result.ItemStyle, result.ContainerName, result.Sack + 1, GetContainerTypeString(result.ContainerType));
+				int currentRow = this.resultsDataGridView.Rows.Add(
+					result.ItemName,
+					result.ItemStyle,
+					result.ContainerName,
+					GetContainerTypeString(result.SackType),
+					result.RequiredLevel
+				);
 
 				// Change the text color of the item string and style to match the style color.
-				int currentRow = this.resultsDataGridView.Rows.Count - 1;
 				if (currentRow > -1)
 				{
-					this.resultsDataGridView.Rows[currentRow].Cells[0].Style.ForeColor = color;
-					this.resultsDataGridView.Rows[currentRow].Cells[1].Style.ForeColor = color;
+					this.resultsDataGridView.Rows[currentRow].Cells[0].Style.ForeColor = result.Color;
+					this.resultsDataGridView.Rows[currentRow].Cells[1].Style.ForeColor = result.Color;
+					this.resultsDataGridView.Rows[currentRow].Cells[4].Style.Alignment = DataGridViewContentAlignment.MiddleRight;
+					this.resultsDataGridView.Rows[currentRow].Tag = i;
 				}
 			}
 		}
@@ -326,38 +330,6 @@ namespace TQVaultAE.GUI
             }*/
 		}
 
-
-		delegate IComparable GetComparableProperty(Result result);
-		private void ResultsDataGridViewSorted(object sender, EventArgs e)
-		{
-			var sortOrder = this.resultsDataGridView.SortOrder == SortOrder.Ascending ? 1 : -1;
-			var sortColumnIndex = this.resultsDataGridView.SortedColumn.Index;
-
-			GetComparableProperty getSortProperty = result =>
-			{
-				switch (sortColumnIndex)
-				{
-					case 0:
-						return result.Item.ToString();
-					case 1:
-						return result.ItemStyle;
-					case 2:
-						return result.ContainerName;
-					case 3:
-						return result.Sack;
-					case 4:
-						return GetContainerTypeString(result.ContainerType);
-					default:
-						return 0;
-				}
-			};
-
-			this.resultsList.Sort(delegate (Result a, Result b)
-			{
-				return sortOrder * getSortProperty(a).CompareTo(getSortProperty(b));
-			});
-		}
-
 		/// <summary>
 		/// Handler for the focus changing to a different row.
 		/// </summary>
@@ -371,8 +343,13 @@ namespace TQVaultAE.GUI
 				return;
 			}
 
-			this.selectedResult = (Result)this.resultsList[e.RowIndex];
+			var currentRow = this.resultsDataGridView.Rows[e.RowIndex];
+			if (currentRow.Tag == null)
+			{
+				return;
+			}
 
+			this.selectedResult = this.resultsList[(int)currentRow.Tag];
 			if (this.selectedResult.Item != null && this.ResultChanged != null)
 			{
 				this.ResultChanged(this, new ResultChangedEventArgs(this.selectedResult));
@@ -409,8 +386,15 @@ namespace TQVaultAE.GUI
 				return;
 			}
 
-			this.resultsDataGridView.CurrentCell = this.resultsDataGridView.Rows[e.RowIndex].Cells[e.ColumnIndex];
-			this.selectedResult = (Result)this.resultsList[e.RowIndex];
+			var currentRow = this.resultsDataGridView.Rows[e.RowIndex];
+			if (currentRow.Tag == null)
+			{
+				return;
+			}
+
+			this.selectedResult = this.resultsList[(int)currentRow.Tag];
+
+			this.resultsDataGridView.CurrentCell = currentRow.Cells[e.ColumnIndex];
 			this.tooltip.ChangeText(this.GetToolTip(this.selectedResult));
 		}
 

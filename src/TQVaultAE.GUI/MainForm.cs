@@ -528,7 +528,7 @@ namespace TQVaultAE.GUI
 		/// </summary>
 		/// <param name="itemStyle">ItemStyle enumeration</param>
 		/// <returns>Localized string of the item style</returns>
-		private static string GetItemStyleString(ItemStyle itemStyle)
+		public static string GetItemStyleString(ItemStyle itemStyle)
 		{
 			switch (itemStyle)
 			{
@@ -678,7 +678,7 @@ namespace TQVaultAE.GUI
 				this.predicates = predicates.ToList();
 			}
 
-			public ItemAndPredicate(IList<IItemPredicate> predicates)
+			public ItemAndPredicate(IEnumerable<IItemPredicate> predicates)
 			{
 				this.predicates = predicates.ToList();
 			}
@@ -704,7 +704,7 @@ namespace TQVaultAE.GUI
 				this.predicates = predicates.ToList();
 			}
 
-			public ItemOrPredicate(IList<IItemPredicate> predicates)
+			public ItemOrPredicate(IEnumerable<IItemPredicate> predicates)
 			{
 				this.predicates = predicates.ToList();
 			}
@@ -777,6 +777,26 @@ namespace TQVaultAE.GUI
 			public override string ToString()
 			{
 				return $"Quality({quality})";
+			}
+		}
+
+		private class ItemAttributePredicate : IItemPredicate
+		{
+			private readonly string attribute;
+
+			public ItemAttributePredicate(string attribute)
+			{
+				this.attribute = attribute;
+			}
+
+			public bool Apply(Item item)
+			{
+				return item.GetAttributes(true).ToUpperInvariant().Contains(attribute.ToUpperInvariant());
+			}
+
+			public override string ToString()
+			{
+				return $"Attribute({attribute})";
 			}
 		}
 
@@ -3311,58 +3331,14 @@ namespace TQVaultAE.GUI
 		/// <param name="searchString">string that we are searching for</param>
 		private void Search(string searchString)
 		{
-			// Make sure we have something to search for.
-			if (string.IsNullOrEmpty(searchString))
+			if (searchString == null || searchString.Trim().Count() == 0)
 			{
 				return;
 			}
 
-			// Normalize the search string.
-			searchString = searchString.Trim().ToUpperInvariant();
-
-			// Return if the search string was only white space.
-			if (string.IsNullOrEmpty(searchString))
-			{
-				return;
-			}
-
-			var predicates = new List<IItemPredicate>();
-
-			var TOKENS = "@&".ToCharArray();
-			var fromIndex = 0;
-			var toIndex = -1;
-			do
-			{
-				string term;
-
-				toIndex = searchString.IndexOfAny(TOKENS, fromIndex + 1);
-				if (toIndex < 0)
-				{
-					term = searchString.Substring(fromIndex);
-				} else
-				{
-					term = searchString.Substring(fromIndex, toIndex - fromIndex);
-					fromIndex = toIndex;
-				}
-
-				switch (term[0])
-				{
-					case '@':
-						predicates.Add(new ItemTypePredicate(term.Substring(1)));
-						break;
-					case '&':
-						predicates.Add(new ItemQualityPredicate(term.Substring(1)));
-						break;
-					default:
-						predicates.Add(new ItemNamePredicate(term));
-						break;
-				}
-			} while (toIndex >= 0);
-
-			List<Result> results = new List<Result>();
-
-			ItemAndPredicate predicate = new ItemAndPredicate(predicates);
-			this.SearchFiles(predicate, results);
+			var filter = GetFilterFrom(searchString);
+			var results = new List<Result>();
+			this.SearchFiles(filter, results);
 
 			if (results.Count < 1)
 			{
@@ -3387,6 +3363,70 @@ namespace TQVaultAE.GUI
 			dlg.Show();
 		}
 
+		private static IItemPredicate GetFilterFrom(string searchString)
+		{
+			var predicates = new List<IItemPredicate>();
+			searchString = searchString.Trim();
+
+			var TOKENS = "@#$".ToCharArray();
+			int fromIndex = 0;
+			int toIndex;
+			do
+			{
+				string term;
+
+				toIndex = searchString.IndexOfAny(TOKENS, fromIndex + 1);
+				if (toIndex < 0)
+				{
+					term = searchString.Substring(fromIndex);
+				}
+				else
+				{
+					term = searchString.Substring(fromIndex, toIndex - fromIndex);
+					fromIndex = toIndex;
+				}
+
+				switch (term[0])
+				{
+					case '@':
+						predicates.Add(GetPredicateFrom(term.Substring(1), it => new ItemTypePredicate(it)));
+						break;
+					case '#':
+						predicates.Add(GetPredicateFrom(term.Substring(1), it => new ItemAttributePredicate(it)));
+						break;
+					case '$':
+						predicates.Add(GetPredicateFrom(term.Substring(1), it => new ItemQualityPredicate(it)));
+						break;
+					default:
+						foreach (var name in term.Split('&'))
+						{
+							predicates.Add(GetPredicateFrom(name, it => new ItemNamePredicate(it)));
+						}
+						break;
+				}
+			} while (toIndex >= 0);
+
+			return new ItemAndPredicate(predicates);
+		}
+
+		private static IItemPredicate GetPredicateFrom(string term, Func<string, IItemPredicate> newPredicate)
+		{
+			var predicates = term.Split('|')
+				.Select(it => it.Trim())
+				.Where(it => it.Count() > 0)
+				.Select(it => newPredicate(it));
+
+			switch (predicates.Count())
+			{
+				case 0:
+					return new ItemTruePredicate();
+				case 1:
+					return predicates.First();
+				default:
+					return new ItemOrPredicate(predicates);
+			}
+		}
+
 		/// <summary>
 		/// Selects the item highlighted in the results list.
 		/// </summary>
@@ -3402,14 +3442,14 @@ namespace TQVaultAE.GUI
 
 			this.ClearAllItemsSelectedCallback(this, new SackPanelEventArgs(null, null));
 
-			if (selectedResult.ContainerType == SackType.Vault)
+			if (selectedResult.SackType == SackType.Vault)
 			{
 				// Switch to the selected vault
 				this.vaultListComboBox.SelectedItem = selectedResult.ContainerName;
-				this.vaultPanel.CurrentBag = selectedResult.Sack;
+				this.vaultPanel.CurrentBag = selectedResult.SackNumber;
 				this.vaultPanel.SackPanel.SelectItem(selectedResult.Item.Location);
 			}
-			else if (selectedResult.ContainerType == SackType.Player || selectedResult.ContainerType == SackType.Equipment)
+			else if (selectedResult.SackType == SackType.Player || selectedResult.SackType == SackType.Equipment)
 			{
 				// Switch to the selected player
 				if (this.showSecondaryVault)
@@ -3432,15 +3472,15 @@ namespace TQVaultAE.GUI
 
 				// Update the selection list and load the character.
 				this.characterComboBox.SelectedItem = myName;
-				if (selectedResult.Sack > 0)
+				if (selectedResult.SackNumber > 0)
 				{
-					this.playerPanel.CurrentBag = selectedResult.Sack - 1;
+					this.playerPanel.CurrentBag = selectedResult.SackNumber - 1;
 				}
 
-				if (selectedResult.ContainerType != SackType.Equipment)
+				if (selectedResult.SackType != SackType.Equipment)
 				{
 					// Highlight the item if it's in the player inventory.
-					if (selectedResult.Sack == 0)
+					if (selectedResult.SackNumber == 0)
 					{
 						this.playerPanel.SackPanel.SelectItem(selectedResult.Item.Location);
 					}
@@ -3450,7 +3490,7 @@ namespace TQVaultAE.GUI
 					}
 				}
 			}
-			else if (selectedResult.ContainerType == SackType.Stash)
+			else if (selectedResult.SackType == SackType.Stash)
 			{
 				// Switch to the selected player
 				if (this.showSecondaryVault)
@@ -3471,13 +3511,13 @@ namespace TQVaultAE.GUI
 				this.characterComboBox.SelectedItem = myName;
 
 				// Switch to the Stash bag
-				this.stashPanel.CurrentBag = selectedResult.Sack;
+				this.stashPanel.CurrentBag = selectedResult.SackNumber;
 				this.stashPanel.SackPanel.SelectItem(selectedResult.Item.Location);
 			}
-			else if (selectedResult.ContainerType == SackType.TransferStash)
+			else if (selectedResult.SackType == SackType.TransferStash)
 			{
 				// Switch to the Stash bag
-				this.stashPanel.CurrentBag = selectedResult.Sack;
+				this.stashPanel.CurrentBag = selectedResult.SackNumber;
 				this.stashPanel.SackPanel.SelectItem(selectedResult.Item.Location);
 			}
 		}
@@ -3521,17 +3561,13 @@ namespace TQVaultAE.GUI
 					// Query the sack for the items containing the search string.
 					foreach (Item item in QuerySack(predicate, sack))
 					{
-						results.Add(new Result
-						{
-							////ItemName = item.ToString(),
-							Container = vaultFile,
-							ContainerName = Path.GetFileNameWithoutExtension(vaultFile),
-							Sack = vaultNumber,
-							ContainerType = SackType.Vault,
-							////Location = item.Location,
-							ItemStyle = GetItemStyleString(item.ItemStyle),
-							Item = item
-						});
+						results.Add(new Result(
+							vaultFile,
+							Path.GetFileNameWithoutExtension(vaultFile),
+							vaultNumber,
+							SackType.Vault,
+							item
+						));
 					}
 				}
 			}
@@ -3584,17 +3620,13 @@ namespace TQVaultAE.GUI
 					// Query the sack for the items containing the search string.
 					foreach (Item item in QuerySack(predicate, sack))
 					{
-						results.Add(new Result
-						{
-							////ItemName = item.ToString(),
-							Container = playerFile,
-							ContainerName = playerName,
-							Sack = sackNumber,
-							ContainerType = SackType.Player,
-							////Location = new Point(item.PositionX, item.PositionY),
-							ItemStyle = GetItemStyleString(item.ItemStyle),
-							Item = item
-						});
+						results.Add(new Result(
+							playerFile,
+							playerName,
+							sackNumber,
+							SackType.Player,
+							item
+						));
 					}
 				}
 
@@ -3608,17 +3640,13 @@ namespace TQVaultAE.GUI
 
 				foreach (Item item in QuerySack(predicate, equipmentSack))
 				{
-					results.Add(new Result
-					{
-						////ItemName = item.ToString(),
-						Container = playerFile,
-						ContainerName = playerName,
-						Sack = 0,
-						ContainerType = SackType.Equipment,
-						////Location = new Point(item.PositionX, item.PositionY),
-						ItemStyle = GetItemStyleString(item.ItemStyle),
-						Item = item
-					});
+					results.Add(new Result(
+						playerFile,
+						playerName,
+						0,
+						SackType.Equipment,
+						item
+					));
 				}
 			}
 		}
@@ -3671,17 +3699,13 @@ namespace TQVaultAE.GUI
 
 				foreach (Item item in QuerySack(predicate, sack))
 				{
-					results.Add(new Result
-					{
-						////ItemName = item.ToString(),
-						Container = stashFile,
-						ContainerName = stashName,
-						Sack = sackNumber,
-						ContainerType = sackType,
-						////Location = new Point(item.PositionX, item.PositionY),
-						ItemStyle = GetItemStyleString(item.ItemStyle),
-						Item = item
-					});
+					results.Add(new Result(
+						stashFile,
+						stashName,
+						sackNumber,
+						sackType,
+						item
+					));
 				}
 			}
 		}
